@@ -64,7 +64,7 @@
     // ★ここをあなたのAPI URLに変更（ローカル検証なら http://127.0.0.1:8001）
 const API_BASE = "https://stationwalkscore.onrender.com";
 const API_KEY  = "SWS_2025_9Qm7Vx1kP3rT8nL2aH6zY4cD0sW5uJ9e";
-    const url = `${API_BASE.replace(/\/$/, "")}/lookup?q=${encodeURIComponent(q)}&key=${encodeURIComponent(API_KEY)}`;
+const url = `${API_BASE.replace(/\/$/, "")}/lookup?q=${encodeURIComponent(q)}&key=${encodeURIComponent(API_KEY)}`;
 
     const qEl = document.getElementById("q");
     const suggestEl = document.getElementById("suggest");
