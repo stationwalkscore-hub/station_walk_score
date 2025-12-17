@@ -28,20 +28,16 @@
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
   </style>
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-H10T9QTSXJ"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-H10T9QTSXJ', {
-    anonymize_ip: true
-  });
-</script>
-
-  
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-H10T9QTSXJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-H10T9QTSXJ', { anonymize_ip: true });
+  </script>
 </head>
+
 <body>
   <div class="card">
     <h1>Station Walk Score</h1>
@@ -70,20 +66,54 @@
       <h2>お問い合わせ</h2>
       <p>ご意見・不具合のご連絡はX（旧Twitter）DM または メール（stationwalkscore@gmail.com）までお願いします。</p>
 
+      <h2>お客様アンケート</h2>
+      <p class="legal-note">改善要望・不具合報告はこちらから送ってください（登録不要）。</p>
+
+      <p>
+        <a
+          id="openForm"
+          href="https://docs.google.com/forms/d/e/1FAIpQLScyX0QE1pdvxRCAB7Yvk6L15xnkQnh-YfYcFY9fmprtELLMyw/viewform"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="display:inline-block;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;text-decoration:none"
+        >
+          アンケートを開く（別タブ）
+        </a>
+      </p>
+
+      <iframe
+        src="https://docs.google.com/forms/d/e/1FAIpQLScyX0QE1pdvxRCAB7Yvk6L15xnkQnh-YfYcFY9fmprtELLMyw/viewform?embedded=true"
+        width="100%"
+        height="950"
+        style="border:0;border-radius:12px;background:#fff"
+        title="SWS お客様アンケート"
+        loading="lazy"
+      ></iframe>
     </div>
   </div>
 
   <script>
-    // ★ここをあなたのAPI URLに変更（ローカル検証なら http://127.0.0.1:8001）
-const API_BASE = "https://stationwalkscore.onrender.com";
-const API_KEY  = "SWS_2025_9Qm7Vx1kP3rT8nL2aH6zY4cD0sW5uJ9e";
-const url = `${API_BASE.replace(/\/$/, "")}/lookup?q=${encodeURIComponent(q)}&key=${encodeURIComponent(API_KEY)}`;
+    // ========= 設定 =========
+    const API_BASE = "https://stationwalkscore.onrender.com";
+    const API_KEY  = "SWS_2025_9Qm7Vx1kP3rT8nL2aH6zY4cD0sW5uJ9e";
+    const API_ROOT = API_BASE.replace(/\/$/, "");
 
+    // ========= GA4 helper =========
+    function track(eventName, params = {}) {
+      if (window.gtag) gtag('event', eventName, params);
+    }
+
+    // ========= DOM =========
     const qEl = document.getElementById("q");
     const suggestEl = document.getElementById("suggest");
     const resultEl = document.getElementById("result");
     const btnEl = document.getElementById("btn");
     const errEl = document.getElementById("err");
+
+    // アンケートボタンの計測
+    document.getElementById("openForm")?.addEventListener("click", () => {
+      track("open_feedback_form", { method: "button" });
+    });
 
     function showErr(msg) { errEl.style.display = "block"; errEl.textContent = msg; }
     function hideErr() { errEl.style.display = "none"; errEl.textContent = ""; }
@@ -96,11 +126,13 @@ const url = `${API_BASE.replace(/\/$/, "")}/lookup?q=${encodeURIComponent(q)}&ke
 
     function renderResult(name, score) {
       resultEl.style.display = "block";
+      const scoreInt = Number(score).toFixed(0);
       resultEl.innerHTML = `
         <div class="name">${escapeHtml(name)}</div>
         <div class="muted">Station Walk Score</div>
-        <div class="score">${Number(score).toFixed(0)}</div>
+        <div class="score">${scoreInt}</div>
       `;
+      track("result_view", { station_name: name, score: scoreInt });
     }
 
     function clearSuggest() { suggestEl.innerHTML = ""; }
@@ -108,21 +140,27 @@ const url = `${API_BASE.replace(/\/$/, "")}/lookup?q=${encodeURIComponent(q)}&ke
     async function getMatches(query) {
       const q = (query ?? "").trim();
       if (!q) return [];
-      const url = `${API_BASE.replace(/\/$/, "")}/lookup?q=${encodeURIComponent(q)}`;
+      // ★ API_KEY を実際に付与（必要な場合）
+      const url = `${API_ROOT}/lookup?q=${encodeURIComponent(q)}&key=${encodeURIComponent(API_KEY)}`;
       const res = await fetch(url, { method: "GET" });
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
       return data.results || [];
     }
 
-    function renderSuggest(items) {
+    function renderSuggest(items, queryForLog = "") {
       clearSuggest();
       if (!items.length) return;
-      items.slice(0, 3).forEach(item => {
+
+      const shown = items.slice(0, 3);
+      track("suggest_view", { query: queryForLog, count: shown.length });
+
+      shown.forEach((item, idx) => {
         const div = document.createElement("div");
         div.className = "suggest-item";
         div.textContent = item.name;
         div.addEventListener("click", () => {
+          track("suggest_click", { station_name: item.name, rank: idx + 1 });
           qEl.value = item.name;
           clearSuggest();
           renderResult(item.name, item.score);
@@ -133,17 +171,22 @@ const url = `${API_BASE.replace(/\/$/, "")}/lookup?q=${encodeURIComponent(q)}&ke
 
     async function submit() {
       hideErr();
+      const query = (qEl.value ?? "").trim();
+      track("search_submit", { query });
+
       try {
-        const matches = await getMatches(qEl.value);
+        const matches = await getMatches(query);
         if (matches.length) {
           renderResult(matches[0].name, matches[0].score);
-          renderSuggest(matches);
+          renderSuggest(matches, query);
         } else {
+          track("not_found", { query });
           clearSuggest();
           resultEl.style.display = "block";
           resultEl.innerHTML = `<div class="name">見つかりません</div><div class="muted">別の駅名で試してください</div>`;
         }
       } catch (e) {
+        track("api_error", { message: String(e?.message || e) });
         showErr("APIに接続できませんでした。APIが起動しているか、URL/CORS設定を確認してください。");
         console.error(e);
       }
@@ -155,20 +198,23 @@ const url = `${API_BASE.replace(/\/$/, "")}/lookup?q=${encodeURIComponent(q)}&ke
       clearTimeout(debounceTimer);
       const v = qEl.value;
       if (!v.trim()) { clearSuggest(); resultEl.style.display = "none"; return; }
+
       debounceTimer = setTimeout(async () => {
-        try { renderSuggest(await getMatches(v)); } catch (e) { console.error(e); }
+        try {
+          const matches = await getMatches(v);
+          renderSuggest(matches, (v ?? "").trim());
+        } catch (e) {
+          // サジェスト時の失敗は静かに（ノイズになるので）
+          console.error(e);
+        }
       }, 200);
     });
 
-    qEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); }});
+    qEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); submit(); }
+    });
+
     btnEl.addEventListener("click", () => submit());
   </script>
-
-  <script>
-  function track(eventName, params = {}) {
-    if (window.gtag) gtag('event', eventName, params);
-  }
-</script>
-
 </body>
 </html>
