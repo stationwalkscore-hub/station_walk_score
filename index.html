@@ -27,6 +27,20 @@
     .error { color: #b91c1c; font-size: 12px; margin-top: 10px; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
   </style>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-H10T9QTSXJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-H10T9QTSXJ', {
+    anonymize_ip: true
+  });
+</script>
+
+  
 </head>
 <body>
   <div class="card">
@@ -56,7 +70,6 @@
       <h2>お問い合わせ</h2>
       <p>ご意見・不具合のご連絡はX（旧Twitter）DM または メール（stationwalkscore@gmail.com）までお願いします。</p>
 
-      <p class="muted">ローカル検証用：APIがあなたのMacで動いている場合は <code>http://127.0.0.1:8001</code> を使えます。</p>
     </div>
   </div>
 
@@ -150,5 +163,12 @@ const url = `${API_BASE.replace(/\/$/, "")}/lookup?q=${encodeURIComponent(q)}&ke
     qEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submit(); }});
     btnEl.addEventListener("click", () => submit());
   </script>
+
+  <script>
+  function track(eventName, params = {}) {
+    if (window.gtag) gtag('event', eventName, params);
+  }
+</script>
+
 </body>
 </html>
