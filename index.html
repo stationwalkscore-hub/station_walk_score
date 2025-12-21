@@ -38,14 +38,13 @@
   </script>
 
   <meta property="og:title" content="Station Walk Score" />
-<meta property="og:description" content="交通利便性を定量比較する指標" />
-<meta property="og:image" content="https://station-walk-score.vercel.app/og.png" />
-<meta property="og:url" content="https://station-walk-score.vercel.app/" />
-<meta property="og:type" content="website" />
+  <meta property="og:description" content="交通利便性を定量比較する指標" />
+  <meta property="og:image" content="https://station-walk-score.vercel.app/og.png" />
+  <meta property="og:url" content="https://station-walk-score.vercel.app/" />
+  <meta property="og:type" content="website" />
 
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:image" content="https://station-walk-score.vercel.app/og.png" />
-  
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://station-walk-score.vercel.app/og.png" />
 </head>
 
 <body>
@@ -82,7 +81,6 @@
           こちら
         </a>
       </p>
-      
     </div>
   </div>
 
@@ -97,6 +95,20 @@
       if (window.gtag) gtag('event', eventName, params);
     }
 
+    // ★駅名集計の本体：駅名が「確定した瞬間」だけ送る
+    function trackStationSearch({ stationName, query, method, score, rank }) {
+      if (!window.gtag) return;
+      const scoreInt = (score != null) ? String(Number(score).toFixed(0)) : "";
+      gtag("event", "station_search", {
+        station_name: stationName || "",
+        query: query || "",
+        method: method || "",
+        score: scoreInt,
+        // 候補クリック時だけ入る（任意）
+        rank: rank != null ? String(rank) : ""
+      });
+    }
+
     // ========= DOM =========
     const qEl = document.getElementById("q");
     const suggestEl = document.getElementById("suggest");
@@ -104,7 +116,7 @@
     const btnEl = document.getElementById("btn");
     const errEl = document.getElementById("err");
 
-    // アンケートボタンの計測
+    // アンケートボタンの計測（残す）
     document.getElementById("openForm")?.addEventListener("click", () => {
       track("open_feedback_form", { method: "button" });
     });
@@ -118,6 +130,7 @@
       });
     }
 
+    // ★ここではGA送らない（表示イベントはノイズになるので）
     function renderResult(name, score) {
       resultEl.style.display = "block";
       const scoreInt = Number(score).toFixed(0);
@@ -126,7 +139,6 @@
         <div class="muted">Station Walk Score</div>
         <div class="score">${scoreInt}</div>
       `;
-      track("result_view", { station_name: name, score: scoreInt });
     }
 
     function clearSuggest() { suggestEl.innerHTML = ""; }
@@ -134,7 +146,6 @@
     async function getMatches(query) {
       const q = (query ?? "").trim();
       if (!q) return [];
-      // ★ API_KEY を実際に付与（必要な場合）
       const url = `${API_ROOT}/lookup?q=${encodeURIComponent(q)}&key=${encodeURIComponent(API_KEY)}`;
       const res = await fetch(url, { method: "GET" });
       if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -147,42 +158,59 @@
       if (!items.length) return;
 
       const shown = items.slice(0, 3);
-      track("suggest_view", { query: queryForLog, count: shown.length });
 
       shown.forEach((item, idx) => {
         const div = document.createElement("div");
         div.className = "suggest-item";
         div.textContent = item.name;
         div.addEventListener("click", () => {
-          track("suggest_click", { station_name: item.name, rank: idx + 1 });
           qEl.value = item.name;
           clearSuggest();
           renderResult(item.name, item.score);
+
+          // ★候補クリックで駅名が確定したので送る
+          trackStationSearch({
+            stationName: item.name,
+            query: (queryForLog ?? "").trim(),
+            method: "suggest_click",
+            score: item.score,
+            rank: idx + 1
+          });
         });
         suggestEl.appendChild(div);
       });
     }
 
-    async function submit() {
+    // ★検索確定（Enter/ボタン）で station_search を送る
+    async function submit(method = "button") {
       hideErr();
       const query = (qEl.value ?? "").trim();
-      track("search_submit", { query });
 
       try {
         const matches = await getMatches(query);
         if (matches.length) {
-          renderResult(matches[0].name, matches[0].score);
+          const top = matches[0];
+          renderResult(top.name, top.score);
           renderSuggest(matches, query);
+
+          trackStationSearch({
+            stationName: top.name,
+            query,
+            method,
+            score: top.score
+          });
         } else {
-          track("not_found", { query });
           clearSuggest();
           resultEl.style.display = "block";
           resultEl.innerHTML = `<div class="name">見つかりません</div><div class="muted">別の駅名で試してください</div>`;
+          // 任意：見つからない検索も見たい場合だけ
+          // track("station_not_found", { query, method });
         }
       } catch (e) {
-        track("api_error", { message: String(e?.message || e) });
         showErr("APIに接続できませんでした。APIが起動しているか、URL/CORS設定を確認してください。");
         console.error(e);
+        // 任意：障害監視したい場合だけ
+        // track("api_error", { message: String(e?.message || e) });
       }
     }
 
@@ -198,17 +226,16 @@
           const matches = await getMatches(v);
           renderSuggest(matches, (v ?? "").trim());
         } catch (e) {
-          // サジェスト時の失敗は静かに（ノイズになるので）
           console.error(e);
         }
       }, 200);
     });
 
     qEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); submit(); }
+      if (e.key === "Enter") { e.preventDefault(); submit("enter"); }
     });
 
-    btnEl.addEventListener("click", () => submit());
+    btnEl.addEventListener("click", () => submit("button"));
   </script>
 </body>
 </html>
