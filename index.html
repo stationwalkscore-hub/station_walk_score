@@ -18,7 +18,7 @@
     .suggest-item:hover { background: #f9fafb; }
     .muted { color: #6b7280; font-size: 13px; }
 
-    /* ===== Result: 右に大きいスコア（上に詰める） ===== */
+    /* ===== Result: 駅名(1行目)とスコアを上下揃え + スコア右端固定 ===== */
     .result {
       margin-top: 14px;
       padding: 12px;
@@ -26,22 +26,37 @@
       background: #f9fafb;
       border: 1px solid #e5e7eb;
 
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-
-      /* ★これで右側スコアが下に落ちず、上に詰まる */
-      align-items: flex-start;
+      display: grid;
+      grid-template-columns: 1fr auto; /* 左:可変 / 右:スコア */
+      grid-template-rows: auto auto;   /* 1行目:駅名+スコア / 2行目:説明 */
+      column-gap: 12px;
+      row-gap: 6px;
+      align-items: baseline;           /* ★駅名とスコアを同じ高さに */
     }
-    .result-left { min-width: 0; }
-    .result .name { font-size: 18px; font-weight: 700; }
-    .result-right { text-align: right; }
-    .result-right .score {
+    .result .name {
+      grid-column: 1;
+      grid-row: 1;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.1;
+      margin: 0;
+      min-width: 0;
+    }
+    .result .muted {
+      grid-column: 1;
+      grid-row: 2;
+      margin: 0;
+    }
+    .result .score {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;   /* ★右端に固定 */
+      align-self: baseline;
       font-size: 44px;
       font-weight: 900;
       line-height: 1;
-      /* ★上に詰めたいので余計なマージンを排除 */
       margin: 0;
+      white-space: nowrap;
     }
 
     .legal { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
@@ -80,7 +95,6 @@
       min-width: 0;
     }
 
-    /* ★右端にスコアを大きく太く */
     .history-right{
       text-align:right;
       display:flex;
@@ -99,7 +113,6 @@
       white-space: nowrap;
     }
 
-    /* 右上の個別削除ボタン */
     .history-del{
       position: absolute;
       top: 12px;
@@ -197,7 +210,6 @@
       if (window.gtag) gtag('event', eventName, params);
     }
 
-    // ★駅名集計の本体：駅名が「確定した瞬間」だけ送る
     function trackStationSearch({ stationName, query, method, score, rank }) {
       if (!window.gtag) return;
       const scoreInt = (score != null) ? String(Number(score).toFixed(0)) : "";
@@ -217,7 +229,6 @@
     const btnEl = document.getElementById("btn");
     const errEl = document.getElementById("err");
 
-    // 履歴DOM
     const historyBoxEl = document.getElementById("historyBox");
     const historyListEl = document.getElementById("historyList");
     const clearHistoryBtn = document.getElementById("clearHistoryBtn");
@@ -253,7 +264,6 @@
         const arr = raw ? JSON.parse(raw) : [];
         const list = Array.isArray(arr) ? arr : [];
 
-        // 旧データ互換（id付与）
         let changed = false;
         const patched = list.map(x => {
           if (x && !x.id) { changed = true; return { ...x, id: makeId() }; }
@@ -278,7 +288,6 @@
       } catch { return ""; }
     }
 
-    // 同じ駅は最新で上書き（重複を潰す）
     function upsertHistory(record) {
       const list = loadHistory();
       const filtered = list.filter(x => x?.stationName !== record.stationName);
@@ -312,7 +321,6 @@
         const div = document.createElement("div");
         div.className = "history-item";
 
-        // ★右端：スコアを大きく太く表示
         div.innerHTML = `
           <button class="history-del" type="button" aria-label="delete">×</button>
           <div class="history-top">
@@ -324,14 +332,12 @@
           </div>
         `;
 
-        // 行クリック：再検索
         div.addEventListener("click", () => {
           qEl.value = h.stationName || "";
           submit("history_click");
           track("history_click", { station_name: h.stationName || "" });
         });
 
-        // ×クリック：その1件だけ削除（行クリックを発火させない）
         const delBtn = div.querySelector(".history-del");
         delBtn.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -351,18 +357,14 @@
       track("history_clear");
     });
 
-    // ========= 結果表示（右に大きい数字：上に詰める） =========
+    // ========= 結果表示（Gridで上下揃え＋右端固定） =========
     function renderResult(name, score) {
       resultEl.style.display = "block";
       const scoreInt = Number(score).toFixed(0);
       resultEl.innerHTML = `
-        <div class="result-left">
-          <div class="name">${escapeHtml(name)}</div>
-          <div class="muted">Station Walk Score</div>
-        </div>
-        <div class="result-right">
-          <div class="score">${scoreInt}</div>
-        </div>
+        <div class="name">${escapeHtml(name)}</div>
+        <div class="score">${scoreInt}</div>
+        <div class="muted">Station Walk Score</div>
       `;
     }
 
@@ -432,13 +434,9 @@
           clearSuggest();
           resultEl.style.display = "block";
           resultEl.innerHTML = `
-            <div class="result-left">
-              <div class="name">見つかりません</div>
-              <div class="muted">別の駅名で試してください</div>
-            </div>
-            <div class="result-right">
-              <div class="score">-</div>
-            </div>
+            <div class="name">見つかりません</div>
+            <div class="score">-</div>
+            <div class="muted">別の駅名で試してください</div>
           `;
         }
       } catch (e) {
@@ -470,7 +468,6 @@
 
     btnEl.addEventListener("click", () => submit("button"));
 
-    // 初期表示で履歴を描画
     renderHistory();
   </script>
 </body>
