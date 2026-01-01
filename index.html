@@ -17,14 +17,11 @@
     .suggest-item { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px; margin-top: 8px; cursor: pointer; user-select: none; }
     .suggest-item:hover { background: #f9fafb; }
 
-    /* ===== Result (KEEP current: bigger & right score) ===== */
-    .result { margin-top: 14px; padding: 12px; border-radius: 12px; background: #f9fafb; border: 1px solid #e5e7eb;
-              display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-    .result-left { min-width: 0; }
+    /* ===== Result (元の表示に戻す) ===== */
+    .result { margin-top: 14px; padding: 12px; border-radius: 12px; background: #f9fafb; border: 1px solid #e5e7eb; }
     .result .name { font-size: 18px; font-weight: 700; }
-    .result .muted { color: #6b7280; font-size: 13px; margin-top: 4px; }
-    .result-right { text-align: right; }
-    .result-right .score { font-size: 44px; font-weight: 900; line-height: 1; }
+    .result .score { margin-top: 6px; font-size: 28px; font-weight: 800; }
+    .muted { color: #6b7280; font-size: 13px; }
 
     .legal { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
     .legal-note { color: #6b7280; font-size: 12px; line-height: 1.6; margin: 0 0 10px; }
@@ -33,26 +30,55 @@
     .error { color: #b91c1c; font-size: 12px; margin-top: 10px; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
-    /* ===== History (last 5) - BIGGER ===== */
+    /* ===== History (直近5件：表示を大きく＆スコア右端・太字) ===== */
     .history { margin-top: 14px; padding: 16px; border-radius: 14px; background: #fff; border: 1px solid #e5e7eb; }
     .history-head { display:flex; justify-content:space-between; align-items:center; gap: 12px; }
     .history-title { font-size: 16px; font-weight: 800; }
     .history-actions { display:flex; gap: 8px; }
     .history-list { margin-top: 12px; display: grid; gap: 10px; }
-    .history-item { padding: 14px 14px; border: 1px solid #e5e7eb; border-radius: 12px; cursor:pointer; }
-    .history-item:hover { background:#f9fafb; }
-    .history-item-top { display:flex; justify-content:space-between; align-items:center; gap: 10px; }
-    .history-name { font-size: 16px; font-weight: 800; }
-    .history-right { display:flex; align-items:center; gap: 10px; }
-    .history-meta { color:#6b7280; font-size: 13px; white-space: nowrap; }
-    .history-sub { margin-top: 6px; color:#6b7280; font-size: 13px; }
 
-    /* delete one - bigger & easier */
+    .history-item {
+      position: relative;
+      padding: 14px 54px 14px 14px; /* 右上×の分だけ余白 */
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      cursor: pointer;
+      background: #fff;
+    }
+    .history-item:hover { background:#f9fafb; }
+
+    .history-item-top {
+      display:flex;
+      justify-content:space-between;
+      align-items: baseline;
+      gap: 12px;
+    }
+    .history-name { font-size: 16px; font-weight: 800; min-width: 0; }
+    .history-score {
+      margin-left: auto;
+      text-align: right;
+      font-size: 18px;
+      font-weight: 900;  /* 太字 */
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .history-meta { margin-top: 8px; color:#6b7280; font-size: 13px; }
+    .history-sub  { margin-top: 6px; color:#6b7280; font-size: 13px; }
+
+    /* delete one: 右上に固定（スコアの“右端表示”と両立） */
     .history-del {
-      width: 34px; height: 34px;
-      display:inline-flex; align-items:center; justify-content:center;
-      border: 1px solid #e5e7eb; border-radius: 10px;
-      background: #fff; cursor: pointer;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 34px;
+      height: 34px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
       font-size: 18px;
       line-height: 1;
     }
@@ -92,7 +118,7 @@
     <div id="suggest" class="suggest"></div>
     <div id="result" class="result" style="display:none;"></div>
 
-    <!-- History: fixed right below result -->
+    <!-- 履歴：結果の直下に固定 -->
     <div id="historyBox" class="history" style="display:none;">
       <div class="history-head">
         <div class="history-title">直近の検索</div>
@@ -158,7 +184,7 @@
     const btnEl = document.getElementById("btn");
     const errEl = document.getElementById("err");
 
-    // history DOM
+    // 履歴DOM
     const historyBoxEl = document.getElementById("historyBox");
     const historyListEl = document.getElementById("historyList");
     const clearHistoryBtn = document.getElementById("clearHistoryBtn");
@@ -177,7 +203,7 @@
       });
     }
 
-    // ========= History (localStorage, last 5, delete one) =========
+    // ========= 履歴（localStorage / 直近5件 / 1件削除） =========
     const HISTORY_KEY = "sws_history_v1";
     const HISTORY_LIMIT = 5;
 
@@ -195,7 +221,7 @@
         const arr = raw ? JSON.parse(raw) : [];
         const list = Array.isArray(arr) ? arr : [];
 
-        // backward compat: add missing id once
+        // 旧データ互換（id付与）
         let changed = false;
         const patched = list.map(x => {
           if (x && !x.id) { changed = true; return { ...x, id: makeId() }; }
@@ -220,6 +246,7 @@
       } catch { return ""; }
     }
 
+    // 同じ駅は最新で上書き（重複を潰す）
     function upsertHistory(record) {
       const list = loadHistory();
       const filtered = list.filter(x => x?.stationName !== record.stationName);
@@ -253,25 +280,24 @@
         const div = document.createElement("div");
         div.className = "history-item";
 
+        // ★スコアを右端・太字で表示
         div.innerHTML = `
+          <button class="history-del" type="button" aria-label="delete">×</button>
           <div class="history-item-top">
             <div class="history-name">${escapeHtml(h.stationName || "")}</div>
-            <div class="history-right">
-              <div class="history-meta">${fmtTime(h.ts)}</div>
-              <button class="history-del" type="button" aria-label="delete">×</button>
-            </div>
+            <div class="history-score">${Number(h.score ?? 0).toFixed(0)}</div>
           </div>
-          <div class="history-sub">SWS: ${Number(h.score ?? 0).toFixed(0)}</div>
+          <div class="history-meta">${fmtTime(h.ts)}</div>
         `;
 
-        // row click -> re-search
+        // 行クリック：再検索
         div.addEventListener("click", () => {
           qEl.value = h.stationName || "";
           submit("history_click");
           track("history_click", { station_name: h.stationName || "" });
         });
 
-        // delete button click -> delete only this item (stop propagation)
+        // ×クリック：その1件だけ削除（行クリックを発火させない）
         const delBtn = div.querySelector(".history-del");
         delBtn.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -291,18 +317,14 @@
       track("history_clear");
     });
 
-    // ========= Result render =========
+    // ========= 結果表示（元の形） =========
     function renderResult(name, score) {
       resultEl.style.display = "block";
       const scoreInt = Number(score).toFixed(0);
       resultEl.innerHTML = `
-        <div class="result-left">
-          <div class="name">${escapeHtml(name)}</div>
-          <div class="muted">Station Walk Score</div>
-        </div>
-        <div class="result-right">
-          <div class="score">${scoreInt}</div>
-        </div>
+        <div class="name">${escapeHtml(name)}</div>
+        <div class="muted">Station Walk Score</div>
+        <div class="score">${scoreInt}</div>
       `;
     }
 
@@ -333,7 +355,7 @@
           clearSuggest();
           renderResult(item.name, item.score);
 
-          // station_search (confirmed)
+          // ★候補クリックで駅名が確定したので送る
           trackStationSearch({
             stationName: item.name,
             query: (queryForLog ?? "").trim(),
@@ -342,7 +364,7 @@
             rank: idx + 1
           });
 
-          // save history
+          // ★直近5件履歴に保存
           upsertHistory({ ts: Date.now(), stationName: item.name, score: item.score });
           renderHistory();
         });
@@ -350,7 +372,7 @@
       });
     }
 
-    // search confirm (enter/button/history_click)
+    // ★検索確定（Enter/ボタン/履歴クリック）で station_search を送る
     async function submit(method = "button") {
       hideErr();
       const query = (qEl.value ?? "").trim();
@@ -375,13 +397,8 @@
           clearSuggest();
           resultEl.style.display = "block";
           resultEl.innerHTML = `
-            <div class="result-left">
-              <div class="name">見つかりません</div>
-              <div class="muted">別の駅名で試してください</div>
-            </div>
-            <div class="result-right">
-              <div class="score">-</div>
-            </div>
+            <div class="name">見つかりません</div>
+            <div class="muted">別の駅名で試してください</div>
           `;
         }
       } catch (e) {
@@ -413,7 +430,7 @@
 
     btnEl.addEventListener("click", () => submit("button"));
 
-    // initial render
+    // 初期表示で履歴を描画
     renderHistory();
   </script>
 </body>
