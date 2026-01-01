@@ -16,12 +16,33 @@
     .suggest { margin-top: 10px; }
     .suggest-item { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px; margin-top: 8px; cursor: pointer; user-select: none; }
     .suggest-item:hover { background: #f9fafb; }
-
-    /* ===== Result (元の表示に戻す) ===== */
-    .result { margin-top: 14px; padding: 12px; border-radius: 12px; background: #f9fafb; border: 1px solid #e5e7eb; }
-    .result .name { font-size: 18px; font-weight: 700; }
-    .result .score { margin-top: 6px; font-size: 28px; font-weight: 800; }
     .muted { color: #6b7280; font-size: 13px; }
+
+    /* ===== Result: 右に大きいスコア（上に詰める） ===== */
+    .result {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+
+      /* ★これで右側スコアが下に落ちず、上に詰まる */
+      align-items: flex-start;
+    }
+    .result-left { min-width: 0; }
+    .result .name { font-size: 18px; font-weight: 700; }
+    .result-right { text-align: right; }
+    .result-right .score {
+      font-size: 44px;
+      font-weight: 900;
+      line-height: 1;
+      /* ★上に詰めたいので余計なマージンを排除 */
+      margin: 0;
+    }
 
     .legal { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
     .legal-note { color: #6b7280; font-size: 12px; line-height: 1.6; margin: 0 0 10px; }
@@ -30,48 +51,61 @@
     .error { color: #b91c1c; font-size: 12px; margin-top: 10px; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
-    /* ===== History (直近5件：表示を大きく＆スコア右端・太字) ===== */
+    /* ===== History（直近5件）：スコアを右端で大きく太く ===== */
     .history { margin-top: 14px; padding: 16px; border-radius: 14px; background: #fff; border: 1px solid #e5e7eb; }
     .history-head { display:flex; justify-content:space-between; align-items:center; gap: 12px; }
     .history-title { font-size: 16px; font-weight: 800; }
     .history-actions { display:flex; gap: 8px; }
-    .history-list { margin-top: 12px; display: grid; gap: 10px; }
+    .history-list { margin-top: 12px; display: grid; gap: 12px; }
 
-    .history-item {
+    .history-item{
       position: relative;
-      padding: 14px 54px 14px 14px; /* 右上×の分だけ余白 */
+      padding: 16px 60px 16px 16px; /* 右上×の分の余白 */
       border: 1px solid #e5e7eb;
-      border-radius: 12px;
+      border-radius: 14px;
       cursor: pointer;
       background: #fff;
     }
     .history-item:hover { background:#f9fafb; }
 
-    .history-item-top {
+    .history-top{
       display:flex;
       justify-content:space-between;
-      align-items: baseline;
+      align-items:flex-start;
       gap: 12px;
     }
-    .history-name { font-size: 16px; font-weight: 800; min-width: 0; }
-    .history-score {
-      margin-left: auto;
-      text-align: right;
+    .history-name{
       font-size: 18px;
-      font-weight: 900;  /* 太字 */
+      font-weight: 900;
+      min-width: 0;
+    }
+
+    /* ★右端にスコアを大きく太く */
+    .history-right{
+      text-align:right;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap: 6px;
+    }
+    .history-score{
+      font-size: 26px;
+      font-weight: 950;
       line-height: 1;
+    }
+    .history-meta{
+      color:#6b7280;
+      font-size: 13px;
       white-space: nowrap;
     }
-    .history-meta { margin-top: 8px; color:#6b7280; font-size: 13px; }
-    .history-sub  { margin-top: 6px; color:#6b7280; font-size: 13px; }
 
-    /* delete one: 右上に固定（スコアの“右端表示”と両立） */
-    .history-del {
+    /* 右上の個別削除ボタン */
+    .history-del{
       position: absolute;
-      top: 10px;
-      right: 10px;
-      width: 34px;
-      height: 34px;
+      top: 12px;
+      right: 12px;
+      width: 36px;
+      height: 36px;
       display:inline-flex;
       align-items:center;
       justify-content:center;
@@ -172,7 +206,6 @@
         query: query || "",
         method: method || "",
         score: scoreInt,
-        // 候補クリック時だけ入る（任意）
         rank: rank != null ? String(rank) : ""
       });
     }
@@ -189,7 +222,6 @@
     const historyListEl = document.getElementById("historyList");
     const clearHistoryBtn = document.getElementById("clearHistoryBtn");
 
-    // アンケートボタンの計測（残す）
     document.getElementById("openForm")?.addEventListener("click", () => {
       track("open_feedback_form", { method: "button" });
     });
@@ -280,14 +312,16 @@
         const div = document.createElement("div");
         div.className = "history-item";
 
-        // ★スコアを右端・太字で表示
+        // ★右端：スコアを大きく太く表示
         div.innerHTML = `
           <button class="history-del" type="button" aria-label="delete">×</button>
-          <div class="history-item-top">
+          <div class="history-top">
             <div class="history-name">${escapeHtml(h.stationName || "")}</div>
-            <div class="history-score">${Number(h.score ?? 0).toFixed(0)}</div>
+            <div class="history-right">
+              <div class="history-score">${Number(h.score ?? 0).toFixed(0)}</div>
+              <div class="history-meta">${fmtTime(h.ts)}</div>
+            </div>
           </div>
-          <div class="history-meta">${fmtTime(h.ts)}</div>
         `;
 
         // 行クリック：再検索
@@ -317,14 +351,18 @@
       track("history_clear");
     });
 
-    // ========= 結果表示（元の形） =========
+    // ========= 結果表示（右に大きい数字：上に詰める） =========
     function renderResult(name, score) {
       resultEl.style.display = "block";
       const scoreInt = Number(score).toFixed(0);
       resultEl.innerHTML = `
-        <div class="name">${escapeHtml(name)}</div>
-        <div class="muted">Station Walk Score</div>
-        <div class="score">${scoreInt}</div>
+        <div class="result-left">
+          <div class="name">${escapeHtml(name)}</div>
+          <div class="muted">Station Walk Score</div>
+        </div>
+        <div class="result-right">
+          <div class="score">${scoreInt}</div>
+        </div>
       `;
     }
 
@@ -355,7 +393,6 @@
           clearSuggest();
           renderResult(item.name, item.score);
 
-          // ★候補クリックで駅名が確定したので送る
           trackStationSearch({
             stationName: item.name,
             query: (queryForLog ?? "").trim(),
@@ -364,7 +401,6 @@
             rank: idx + 1
           });
 
-          // ★直近5件履歴に保存
           upsertHistory({ ts: Date.now(), stationName: item.name, score: item.score });
           renderHistory();
         });
@@ -372,7 +408,6 @@
       });
     }
 
-    // ★検索確定（Enter/ボタン/履歴クリック）で station_search を送る
     async function submit(method = "button") {
       hideErr();
       const query = (qEl.value ?? "").trim();
@@ -397,8 +432,13 @@
           clearSuggest();
           resultEl.style.display = "block";
           resultEl.innerHTML = `
-            <div class="name">見つかりません</div>
-            <div class="muted">別の駅名で試してください</div>
+            <div class="result-left">
+              <div class="name">見つかりません</div>
+              <div class="muted">別の駅名で試してください</div>
+            </div>
+            <div class="result-right">
+              <div class="score">-</div>
+            </div>
           `;
         }
       } catch (e) {
