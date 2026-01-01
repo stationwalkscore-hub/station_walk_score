@@ -18,7 +18,7 @@
     .suggest-item:hover { background: #f9fafb; }
     .muted { color: #6b7280; font-size: 13px; }
 
-    /* ===== Result: 駅名(1行目)とスコアを上下揃え + スコア右端固定 ===== */
+    /* ===== Result: 駅名とスコアを同じ高さ + スコア右端固定（Station Walk Score行なし） ===== */
     .result {
       margin-top: 14px;
       padding: 12px;
@@ -28,9 +28,8 @@
 
       display: grid;
       grid-template-columns: 1fr auto; /* 左:可変 / 右:スコア */
-      grid-template-rows: auto auto;   /* 1行目:駅名+スコア / 2行目:説明 */
+      grid-template-rows: auto;        /* 1行のみ */
       column-gap: 12px;
-      row-gap: 6px;
       align-items: baseline;           /* ★駅名とスコアを同じ高さに */
     }
     .result .name {
@@ -41,11 +40,6 @@
       line-height: 1.1;
       margin: 0;
       min-width: 0;
-    }
-    .result .muted {
-      grid-column: 1;
-      grid-row: 2;
-      margin: 0;
     }
     .result .score {
       grid-column: 2;
@@ -357,14 +351,13 @@
       track("history_clear");
     });
 
-    // ========= 結果表示（Gridで上下揃え＋右端固定） =========
+    // ========= 結果表示（Station Walk Score行を消す） =========
     function renderResult(name, score) {
       resultEl.style.display = "block";
       const scoreInt = Number(score).toFixed(0);
       resultEl.innerHTML = `
         <div class="name">${escapeHtml(name)}</div>
         <div class="score">${scoreInt}</div>
-        <div class="muted">Station Walk Score</div>
       `;
     }
 
@@ -436,7 +429,6 @@
           resultEl.innerHTML = `
             <div class="name">見つかりません</div>
             <div class="score">-</div>
-            <div class="muted">別の駅名で試してください</div>
           `;
         }
       } catch (e) {
