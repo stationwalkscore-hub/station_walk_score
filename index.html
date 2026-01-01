@@ -4,89 +4,136 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Station Walk Score</title>
-  <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; margin: 24px; }
-    .card { max-width: 720px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px; }
-    h1 { font-size: 20px; margin: 0 0 12px; }
-    .row { display: flex; gap: 8px; align-items: center; }
-    input { flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 16px; }
-    button { padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; background: #fff; cursor: pointer; }
-    button:hover { background: #f9fafb; }
-    .hint { color: #6b7280; font-size: 13px; margin-top: 8px; }
-    .suggest { margin-top: 10px; }
-    .suggest-item { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px; margin-top: 8px; cursor: pointer; user-select: none; }
-    .suggest-item:hover { background: #f9fafb; }
-    .muted { color: #6b7280; font-size: 13px; }
 
-    /* ===== Result: 駅名とスコアを同じ高さ + スコア右端固定（Station Walk Score行なし） ===== */
-    .result {
+  <style>
+    :root{
+      --border:#e5e7eb;
+      --border2:#d1d5db;
+      --bg:#ffffff;
+      --bg-soft:#f9fafb;
+      --text-muted:#6b7280;
+      --text-danger:#b91c1c;
+      --radius:16px;
+    }
+
+    body{
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      margin: 24px;
+      background: var(--bg);
+    }
+
+    .card{
+      max-width: 720px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+
+    h1{ font-size: 20px; margin: 0 0 12px; }
+
+    .row{ display:flex; gap:8px; align-items:center; }
+    input{
+      flex:1;
+      padding: 10px 12px;
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      font-size: 16px;
+    }
+    button{
+      padding: 10px 12px;
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+    }
+    button:hover{ background: var(--bg-soft); }
+
+    .hint{ color: var(--text-muted); font-size: 13px; margin-top: 8px; }
+    .error{ color: var(--text-danger); font-size: 12px; margin-top: 10px; display:none; }
+
+    .suggest{ margin-top: 10px; }
+    .suggest-item{
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-top: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .suggest-item:hover{ background: var(--bg-soft); }
+
+    /* =========================
+       Result (駅名とスコアを同サイズ / 右端固定 / 1行)
+       ========================= */
+    .result{
       margin-top: 14px;
-      padding: 12px;
+      padding: 16px;
       border-radius: 12px;
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
 
       display: grid;
-      grid-template-columns: 1fr auto; /* 左:可変 / 右:スコア */
-      grid-template-rows: auto;        /* 1行のみ */
+      grid-template-columns: 1fr auto;
+      align-items: baseline;     /* ★上下（ベースライン）を揃える */
       column-gap: 12px;
-      align-items: baseline;           /* ★駅名とスコアを同じ高さに */
     }
-    .result .name {
-      grid-column: 1;
-      grid-row: 1;
-      font-size: 18px;
-      font-weight: 700;
-      line-height: 1.1;
-      margin: 0;
-      min-width: 0;
-    }
-    .result .score {
-      grid-column: 2;
-      grid-row: 1;
-      justify-self: end;   /* ★右端に固定 */
-      align-self: baseline;
-      font-size: 44px;
+
+    /* ★駅名を数字と同じくらい大きく */
+    .result .name,
+    .result .score{
+      font-size: clamp(28px, 6vw, 44px); /* 端末対応しつつ“同じくらい” */
       font-weight: 900;
       line-height: 1;
       margin: 0;
+    }
+
+    .result .name{
+      grid-column: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;  /* 長い駅名でもレイアウト崩れない */
+      min-width: 0;
+    }
+    .result .score{
+      grid-column: 2;
+      justify-self: end;        /* ★右端固定 */
       white-space: nowrap;
     }
 
-    .legal { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
-    .legal-note { color: #6b7280; font-size: 12px; line-height: 1.6; margin: 0 0 10px; }
-    .legal h2 { font-size: 14px; margin: 12px 0 6px; }
-    .legal p { color: #6b7280; font-size: 12px; line-height: 1.6; margin: 0 0 8px; }
-    .error { color: #b91c1c; font-size: 12px; margin-top: 10px; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-
-    /* ===== History（直近5件）：スコアを右端で大きく太く ===== */
-    .history { margin-top: 14px; padding: 16px; border-radius: 14px; background: #fff; border: 1px solid #e5e7eb; }
-    .history-head { display:flex; justify-content:space-between; align-items:center; gap: 12px; }
-    .history-title { font-size: 16px; font-weight: 800; }
-    .history-actions { display:flex; gap: 8px; }
-    .history-list { margin-top: 12px; display: grid; gap: 12px; }
+    /* =========================
+       History (直近5件 / 右端スコア強調 / 個別削除)
+       ========================= */
+    .history{
+      margin-top: 14px;
+      padding: 16px;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid var(--border);
+      display:none;
+    }
+    .history-head{ display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .history-title{ font-size: 16px; font-weight: 800; }
+    .history-list{ margin-top: 12px; display:grid; gap: 12px; }
 
     .history-item{
       position: relative;
-      padding: 16px 60px 16px 16px; /* 右上×の分の余白 */
-      border: 1px solid #e5e7eb;
+      padding: 16px 60px 16px 16px; /* 右上×の余白 */
+      border: 1px solid var(--border);
       border-radius: 14px;
       cursor: pointer;
       background: #fff;
     }
-    .history-item:hover { background:#f9fafb; }
+    .history-item:hover{ background: var(--bg-soft); }
 
-    .history-top{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap: 12px;
-    }
+    .history-top{ display:flex; justify-content:space-between; align-items:flex-start; gap: 12px; }
     .history-name{
       font-size: 18px;
       font-weight: 900;
       min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .history-right{
@@ -95,6 +142,7 @@
       flex-direction:column;
       align-items:flex-end;
       gap: 6px;
+      white-space: nowrap;
     }
     .history-score{
       font-size: 26px;
@@ -102,13 +150,12 @@
       line-height: 1;
     }
     .history-meta{
-      color:#6b7280;
+      color: var(--text-muted);
       font-size: 13px;
-      white-space: nowrap;
     }
 
     .history-del{
-      position: absolute;
+      position:absolute;
       top: 12px;
       right: 12px;
       width: 36px;
@@ -116,14 +163,22 @@
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--border);
       border-radius: 10px;
       background: #fff;
       cursor: pointer;
       font-size: 18px;
       line-height: 1;
     }
-    .history-del:hover { background:#f9fafb; }
+    .history-del:hover{ background: var(--bg-soft); }
+
+    /* =========================
+       Legal
+       ========================= */
+    .legal{ margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .legal-note{ color: var(--text-muted); font-size: 12px; line-height: 1.6; margin: 0 0 10px; }
+    .legal h2{ font-size: 14px; margin: 12px 0 6px; }
+    .legal p{ color: var(--text-muted); font-size: 12px; line-height: 1.6; margin: 0 0 8px; }
   </style>
 
   <!-- Google tag (gtag.js) -->
@@ -140,7 +195,6 @@
   <meta property="og:image" content="https://station-walk-score.vercel.app/og.png" />
   <meta property="og:url" content="https://station-walk-score.vercel.app/" />
   <meta property="og:type" content="website" />
-
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="https://station-walk-score.vercel.app/og.png" />
 </head>
@@ -155,12 +209,11 @@
     </div>
     <div class="hint">候補は最大3件まで表示します。候補をクリックして確定できます。</div>
 
-    <div id="err" class="error" style="display:none;"></div>
+    <div id="err" class="error"></div>
     <div id="suggest" class="suggest"></div>
     <div id="result" class="result" style="display:none;"></div>
 
-    <!-- 履歴：結果の直下に固定 -->
-    <div id="historyBox" class="history" style="display:none;">
+    <div id="historyBox" class="history">
       <div class="history-head">
         <div class="history-title">直近の検索</div>
         <div class="history-actions">
@@ -185,23 +238,41 @@
           href="https://docs.google.com/forms/d/e/1FAIpQLScyX0QE1pdvxRCAB7Yvk6L15xnkQnh-YfYcFY9fmprtELLMyw/viewform"
           target="_blank"
           rel="noopener noreferrer"
-          style="display:inline-block;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;text-decoration:none"
-        >
-          こちら
-        </a>
+          style="display:inline-block;padding:10px 12px;border:1px solid var(--border2);border-radius:10px;text-decoration:none"
+        >こちら</a>
       </p>
     </div>
   </div>
 
   <script>
-    // ========= 設定 =========
+    /********************
+     * Config
+     ********************/
     const API_BASE = "https://stationwalkscore.onrender.com";
     const API_KEY  = "SWS_2025_9Qm7Vx1kP3rT8nL2aH6zY4cD0sW5uJ9e";
     const API_ROOT = API_BASE.replace(/\/$/, "");
 
-    // ========= GA4 helper =========
+    const HISTORY_KEY   = "sws_history_v1";
+    const HISTORY_LIMIT = 5;
+
+    /********************
+     * DOM
+     ********************/
+    const $q       = document.getElementById("q");
+    const $btn     = document.getElementById("btn");
+    const $err     = document.getElementById("err");
+    const $suggest = document.getElementById("suggest");
+    const $result  = document.getElementById("result");
+
+    const $historyBox = document.getElementById("historyBox");
+    const $historyList = document.getElementById("historyList");
+    const $clearHistoryBtn = document.getElementById("clearHistoryBtn");
+
+    /********************
+     * Analytics
+     ********************/
     function track(eventName, params = {}) {
-      if (window.gtag) gtag('event', eventName, params);
+      if (window.gtag) gtag("event", eventName, params);
     }
 
     function trackStationSearch({ stationName, query, method, score, rank }) {
@@ -216,59 +287,24 @@
       });
     }
 
-    // ========= DOM =========
-    const qEl = document.getElementById("q");
-    const suggestEl = document.getElementById("suggest");
-    const resultEl = document.getElementById("result");
-    const btnEl = document.getElementById("btn");
-    const errEl = document.getElementById("err");
-
-    const historyBoxEl = document.getElementById("historyBox");
-    const historyListEl = document.getElementById("historyList");
-    const clearHistoryBtn = document.getElementById("clearHistoryBtn");
-
     document.getElementById("openForm")?.addEventListener("click", () => {
       track("open_feedback_form", { method: "button" });
     });
 
-    function showErr(msg) { errEl.style.display = "block"; errEl.textContent = msg; }
-    function hideErr() { errEl.style.display = "none"; errEl.textContent = ""; }
-
+    /********************
+     * Utils
+     ********************/
     function escapeHtml(str) {
-      return (str ?? "").toString().replace(/[&<>"']/g, function(m) {
-        return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[m];
-      });
+      return (str ?? "").toString().replace(/[&<>"']/g, (m) => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[m]));
     }
 
-    // ========= 履歴（localStorage / 直近5件 / 1件削除） =========
-    const HISTORY_KEY = "sws_history_v1";
-    const HISTORY_LIMIT = 5;
+    function showErr(msg) { $err.style.display = "block"; $err.textContent = msg; }
+    function hideErr() { $err.style.display = "none"; $err.textContent = ""; }
 
     function makeId() {
       return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    }
-
-    function saveHistory(arr) {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
-    }
-
-    function loadHistory() {
-      try {
-        const raw = localStorage.getItem(HISTORY_KEY);
-        const arr = raw ? JSON.parse(raw) : [];
-        const list = Array.isArray(arr) ? arr : [];
-
-        let changed = false;
-        const patched = list.map(x => {
-          if (x && !x.id) { changed = true; return { ...x, id: makeId() }; }
-          return x;
-        });
-        if (changed) saveHistory(patched);
-
-        return patched;
-      } catch {
-        return [];
-      }
     }
 
     function fmtTime(ts) {
@@ -282,87 +318,50 @@
       } catch { return ""; }
     }
 
-    function upsertHistory(record) {
+    /********************
+     * History (localStorage)
+     ********************/
+    function saveHistory(arr) {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+    }
+
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        const list = Array.isArray(arr) ? arr : [];
+
+        // backward compat: ensure id
+        let changed = false;
+        const patched = list.map(x => {
+          if (x && !x.id) { changed = true; return { ...x, id: makeId() }; }
+          return x;
+        });
+        if (changed) saveHistory(patched);
+
+        return patched;
+      } catch {
+        return [];
+      }
+    }
+
+    function upsertHistory({ stationName, score, ts = Date.now() }) {
       const list = loadHistory();
-      const filtered = list.filter(x => x?.stationName !== record.stationName);
-      const rec = { id: record.id || makeId(), ...record };
-      const next = [rec, ...filtered].slice(0, HISTORY_LIMIT);
+      const filtered = list.filter(x => x?.stationName !== stationName);
+      const next = [{ id: makeId(), stationName, score, ts }, ...filtered].slice(0, HISTORY_LIMIT);
       saveHistory(next);
       return next;
     }
 
     function deleteHistoryById(id) {
-      const list = loadHistory();
-      const next = list.filter(x => x?.id !== id);
+      const next = loadHistory().filter(x => x?.id !== id);
       saveHistory(next);
       return next;
     }
 
-    function renderHistory() {
-      if (!historyBoxEl || !historyListEl) return;
-
-      const items = loadHistory();
-      if (!items.length) {
-        historyBoxEl.style.display = "none";
-        historyListEl.innerHTML = "";
-        return;
-      }
-
-      historyBoxEl.style.display = "block";
-      historyListEl.innerHTML = "";
-
-      items.forEach((h) => {
-        const div = document.createElement("div");
-        div.className = "history-item";
-
-        div.innerHTML = `
-          <button class="history-del" type="button" aria-label="delete">×</button>
-          <div class="history-top">
-            <div class="history-name">${escapeHtml(h.stationName || "")}</div>
-            <div class="history-right">
-              <div class="history-score">${Number(h.score ?? 0).toFixed(0)}</div>
-              <div class="history-meta">${fmtTime(h.ts)}</div>
-            </div>
-          </div>
-        `;
-
-        div.addEventListener("click", () => {
-          qEl.value = h.stationName || "";
-          submit("history_click");
-          track("history_click", { station_name: h.stationName || "" });
-        });
-
-        const delBtn = div.querySelector(".history-del");
-        delBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          deleteHistoryById(h.id);
-          renderHistory();
-          track("history_delete_one", { station_name: h.stationName || "" });
-        });
-
-        historyListEl.appendChild(div);
-      });
-    }
-
-    clearHistoryBtn?.addEventListener("click", () => {
-      if (!confirm("検索履歴を削除しますか？")) return;
-      localStorage.removeItem(HISTORY_KEY);
-      renderHistory();
-      track("history_clear");
-    });
-
-    // ========= 結果表示（Station Walk Score行を消す） =========
-    function renderResult(name, score) {
-      resultEl.style.display = "block";
-      const scoreInt = Number(score).toFixed(0);
-      resultEl.innerHTML = `
-        <div class="name">${escapeHtml(name)}</div>
-        <div class="score">${scoreInt}</div>
-      `;
-    }
-
-    function clearSuggest() { suggestEl.innerHTML = ""; }
-
+    /********************
+     * API
+     ********************/
     async function getMatches(query) {
       const q = (query ?? "").trim();
       if (!q) return [];
@@ -373,18 +372,74 @@
       return data.results || [];
     }
 
+    /********************
+     * Render
+     ********************/
+    function clearSuggest() { $suggest.innerHTML = ""; }
+
+    function renderResult(stationName, score) {
+      $result.style.display = "grid";
+      $result.innerHTML = `
+        <div class="name">${escapeHtml(stationName)}</div>
+        <div class="score">${Number(score).toFixed(0)}</div>
+      `;
+    }
+
+    function renderHistory() {
+      const items = loadHistory();
+      if (!items.length) {
+        $historyBox.style.display = "none";
+        $historyList.innerHTML = "";
+        return;
+      }
+
+      $historyBox.style.display = "block";
+      $historyList.innerHTML = "";
+
+      for (const h of items) {
+        const row = document.createElement("div");
+        row.className = "history-item";
+        row.innerHTML = `
+          <button class="history-del" type="button" aria-label="delete">×</button>
+          <div class="history-top">
+            <div class="history-name">${escapeHtml(h.stationName || "")}</div>
+            <div class="history-right">
+              <div class="history-score">${Number(h.score ?? 0).toFixed(0)}</div>
+              <div class="history-meta">${fmtTime(h.ts)}</div>
+            </div>
+          </div>
+        `;
+
+        // row click -> search
+        row.addEventListener("click", () => {
+          $q.value = h.stationName || "";
+          submit("history_click");
+          track("history_click", { station_name: h.stationName || "" });
+        });
+
+        // delete one
+        row.querySelector(".history-del").addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteHistoryById(h.id);
+          renderHistory();
+          track("history_delete_one", { station_name: h.stationName || "" });
+        });
+
+        $historyList.appendChild(row);
+      }
+    }
+
     function renderSuggest(items, queryForLog = "") {
       clearSuggest();
       if (!items.length) return;
 
-      const shown = items.slice(0, 3);
-
-      shown.forEach((item, idx) => {
+      items.slice(0, 3).forEach((item, idx) => {
         const div = document.createElement("div");
         div.className = "suggest-item";
         div.textContent = item.name;
+
         div.addEventListener("click", () => {
-          qEl.value = item.name;
+          $q.value = item.name;
           clearSuggest();
           renderResult(item.name, item.score);
 
@@ -396,70 +451,89 @@
             rank: idx + 1
           });
 
-          upsertHistory({ ts: Date.now(), stationName: item.name, score: item.score });
+          upsertHistory({ stationName: item.name, score: item.score });
           renderHistory();
         });
-        suggestEl.appendChild(div);
+
+        $suggest.appendChild(div);
       });
     }
 
+    /********************
+     * Actions
+     ********************/
     async function submit(method = "button") {
       hideErr();
-      const query = (qEl.value ?? "").trim();
+      const query = ($q.value ?? "").trim();
 
       try {
         const matches = await getMatches(query);
-        if (matches.length) {
-          const top = matches[0];
-          renderResult(top.name, top.score);
-          renderSuggest(matches, query);
-
-          trackStationSearch({
-            stationName: top.name,
-            query,
-            method,
-            score: top.score
-          });
-
-          upsertHistory({ ts: Date.now(), stationName: top.name, score: top.score });
-          renderHistory();
-        } else {
+        if (!matches.length) {
           clearSuggest();
-          resultEl.style.display = "block";
-          resultEl.innerHTML = `
+          $result.style.display = "grid";
+          $result.innerHTML = `
             <div class="name">見つかりません</div>
             <div class="score">-</div>
           `;
+          return;
         }
+
+        const top = matches[0];
+        renderResult(top.name, top.score);
+        renderSuggest(matches, query);
+
+        trackStationSearch({
+          stationName: top.name,
+          query,
+          method,
+          score: top.score
+        });
+
+        upsertHistory({ stationName: top.name, score: top.score });
+        renderHistory();
+
       } catch (e) {
         showErr("APIに接続できませんでした。APIが起動しているか、URL/CORS設定を確認してください。");
         console.error(e);
       }
     }
 
+    /********************
+     * Events
+     ********************/
     let debounceTimer = null;
-    qEl.addEventListener("input", () => {
+
+    $q.addEventListener("input", () => {
       hideErr();
       clearTimeout(debounceTimer);
-      const v = qEl.value;
-      if (!v.trim()) { clearSuggest(); resultEl.style.display = "none"; return; }
+
+      const v = ($q.value ?? "").trim();
+      if (!v) { clearSuggest(); $result.style.display = "none"; return; }
 
       debounceTimer = setTimeout(async () => {
         try {
           const matches = await getMatches(v);
-          renderSuggest(matches, (v ?? "").trim());
+          renderSuggest(matches, v);
         } catch (e) {
           console.error(e);
         }
       }, 200);
     });
 
-    qEl.addEventListener("keydown", (e) => {
+    $q.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); submit("enter"); }
     });
 
-    btnEl.addEventListener("click", () => submit("button"));
+    $btn.addEventListener("click", () => submit("button"));
 
+    $clearHistoryBtn.addEventListener("click", () => {
+      if (!confirm("検索履歴を削除しますか？")) return;
+      localStorage.removeItem(HISTORY_KEY);
+      renderHistory();
+      track("history_clear");
+    });
+
+    // initial
     renderHistory();
   </script>
 </body>
