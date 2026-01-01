@@ -26,6 +26,19 @@
     .legal p { color: #6b7280; font-size: 12px; line-height: 1.6; margin: 0 0 8px; }
     .error { color: #b91c1c; font-size: 12px; margin-top: 10px; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    /* ===== 直近5件 履歴UI ===== */
+    .history { margin-top: 14px; padding: 12px; border-radius: 12px; background: #fff; border: 1px solid #e5e7eb; }
+    .history-head { display:flex; justify-content:space-between; align-items:center; gap: 12px; }
+    .history-title { font-size: 14px; font-weight: 700; }
+    .history-actions { display:flex; gap: 8px; }
+    .history-list { margin-top: 10px; display: grid; gap: 8px; }
+    .history-item { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px; cursor:pointer; }
+    .history-item:hover { background:#f9fafb; }
+    .history-item-top { display:flex; justify-content:space-between; gap: 10px; }
+    .history-name { font-weight: 700; }
+    .history-meta { color:#6b7280; font-size: 12px; white-space: nowrap; }
+    .history-sub { margin-top: 4px; color:#6b7280; font-size: 12px; }
   </style>
 
   <!-- Google tag (gtag.js) -->
@@ -53,13 +66,24 @@
 
     <div class="row">
       <input id="q" type="text" placeholder="駅名を入力（例：東京）" autocomplete="off" />
-      <button id="btn">表示</button>
+      <button id="btn" type="button">表示</button>
     </div>
     <div class="hint">候補は最大3件まで表示します。候補をクリックして確定できます。</div>
 
     <div id="err" class="error" style="display:none;"></div>
     <div id="suggest" class="suggest"></div>
     <div id="result" class="result" style="display:none;"></div>
+
+    <!-- ★ 直近5件履歴（結果の直下に固定） -->
+    <div id="historyBox" class="history" style="display:none;">
+      <div class="history-head">
+        <div class="history-title">直近の検索</div>
+        <div class="history-actions">
+          <button id="clearHistoryBtn" type="button">履歴を消す</button>
+        </div>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </div>
 
     <div class="legal">
       <div class="legal-note">※Station Walk Score(SWS)は交通利便性をスコア化したものです。</div>
@@ -116,6 +140,11 @@
     const btnEl = document.getElementById("btn");
     const errEl = document.getElementById("err");
 
+    // 履歴DOM
+    const historyBoxEl = document.getElementById("historyBox");
+    const historyListEl = document.getElementById("historyList");
+    const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+
     // アンケートボタンの計測（残す）
     document.getElementById("openForm")?.addEventListener("click", () => {
       track("open_feedback_form", { method: "button" });
@@ -129,6 +158,84 @@
         return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[m];
       });
     }
+
+    // ========= 直近5件 履歴（localStorage） =========
+    const HISTORY_KEY = "sws_history_v1";
+    const HISTORY_LIMIT = 5;
+
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveHistory(arr) {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+    }
+
+    function fmtTime(ts) {
+      try {
+        const d = new Date(ts);
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mi = String(d.getMinutes()).padStart(2, "0");
+        return `${mm}/${dd} ${hh}:${mi}`;
+      } catch { return ""; }
+    }
+
+    // 同じ駅は最新で上書き（重複を潰す）
+    function upsertHistory(record) {
+      const list = loadHistory();
+      const filtered = list.filter(x => x?.stationName !== record.stationName);
+      const next = [record, ...filtered].slice(0, HISTORY_LIMIT);
+      saveHistory(next);
+      return next;
+    }
+
+    function renderHistory() {
+      if (!historyBoxEl || !historyListEl) return;
+
+      const items = loadHistory();
+      if (!items.length) {
+        historyBoxEl.style.display = "none";
+        historyListEl.innerHTML = "";
+        return;
+      }
+
+      historyBoxEl.style.display = "block";
+      historyListEl.innerHTML = "";
+
+      items.forEach((h) => {
+        const div = document.createElement("div");
+        div.className = "history-item";
+        div.innerHTML = `
+          <div class="history-item-top">
+            <div class="history-name">${escapeHtml(h.stationName || "")}</div>
+            <div class="history-meta">${fmtTime(h.ts)}</div>
+          </div>
+          <div class="history-sub">SWS: ${Number(h.score ?? 0).toFixed(0)}</div>
+        `;
+        div.addEventListener("click", () => {
+          qEl.value = h.stationName || "";
+          // クリックで再検索（＝比較を進める）
+          submit("history_click");
+          track("history_click", { station_name: h.stationName || "" });
+        });
+        historyListEl.appendChild(div);
+      });
+    }
+
+    clearHistoryBtn?.addEventListener("click", () => {
+      if (!confirm("検索履歴を削除しますか？")) return;
+      localStorage.removeItem(HISTORY_KEY);
+      renderHistory();
+      track("history_clear");
+    });
 
     // ★ここではGA送らない（表示イベントはノイズになるので）
     function renderResult(name, score) {
@@ -176,6 +283,10 @@
             score: item.score,
             rank: idx + 1
           });
+
+          // ★直近5件履歴に保存（重複は最新で上書き）
+          upsertHistory({ ts: Date.now(), stationName: item.name, score: item.score });
+          renderHistory();
         });
         suggestEl.appendChild(div);
       });
@@ -199,6 +310,10 @@
             method,
             score: top.score
           });
+
+          // ★直近5件履歴に保存（重複は最新で上書き）
+          upsertHistory({ ts: Date.now(), stationName: top.name, score: top.score });
+          renderHistory();
         } else {
           clearSuggest();
           resultEl.style.display = "block";
@@ -236,6 +351,9 @@
     });
 
     btnEl.addEventListener("click", () => submit("button"));
+
+    // 初期表示で履歴を描画
+    renderHistory();
   </script>
 </body>
 </html>
