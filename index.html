@@ -14,6 +14,10 @@
       --text-muted:#6b7280;
       --text-danger:#b91c1c;
       --radius:16px;
+
+      /* ★結果欄のフォントサイズ調整 */
+      --result-score: clamp(28px, 6vw, 44px);
+      --result-name:  clamp(24px, 5.2vw, 40px); /* ←スコアより“一回り小さく” */
     }
 
     body{
@@ -64,7 +68,7 @@
     .suggest-item:hover{ background: var(--bg-soft); }
 
     /* =========================
-       Result (駅名とスコアを同サイズ / 右端固定 / 1行)
+       Result (駅名を一回り小さく / 右端固定 / 1行)
        ========================= */
     .result{
       margin-top: 14px;
@@ -75,34 +79,35 @@
 
       display: grid;
       grid-template-columns: 1fr auto;
-      align-items: baseline;     /* ★上下（ベースライン）を揃える */
+      align-items: baseline;     /* 上下揃え */
       column-gap: 12px;
-    }
-
-    /* ★駅名を数字と同じくらい大きく */
-    .result .name,
-    .result .score{
-      font-size: clamp(28px, 6vw, 44px); /* 端末対応しつつ“同じくらい” */
-      font-weight: 900;
-      line-height: 1;
-      margin: 0;
     }
 
     .result .name{
       grid-column: 1;
+      font-size: var(--result-name); /* ★小さくした */
+      font-weight: 900;
+      line-height: 1;
+      margin: 0;
+
       white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis;  /* 長い駅名でもレイアウト崩れない */
+      text-overflow: ellipsis;
       min-width: 0;
     }
+
     .result .score{
       grid-column: 2;
-      justify-self: end;        /* ★右端固定 */
+      justify-self: end;         /* 右端固定 */
+      font-size: var(--result-score);
+      font-weight: 900;
+      line-height: 1;
+      margin: 0;
       white-space: nowrap;
     }
 
     /* =========================
-       History (直近5件 / 右端スコア強調 / 個別削除)
+       History
        ========================= */
     .history{
       margin-top: 14px;
@@ -118,7 +123,7 @@
 
     .history-item{
       position: relative;
-      padding: 16px 60px 16px 16px; /* 右上×の余白 */
+      padding: 16px 60px 16px 16px;
       border: 1px solid var(--border);
       border-radius: 14px;
       cursor: pointer;
@@ -410,14 +415,12 @@
           </div>
         `;
 
-        // row click -> search
         row.addEventListener("click", () => {
           $q.value = h.stationName || "";
           submit("history_click");
           track("history_click", { station_name: h.stationName || "" });
         });
 
-        // delete one
         row.querySelector(".history-del").addEventListener("click", (e) => {
           e.stopPropagation();
           deleteHistoryById(h.id);
